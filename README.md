@@ -57,6 +57,11 @@ RANDOMIZE_BASE=n
 make ARCH=arm CROSS_COMPILE=$TOOLCHAIN- -j$(nproc)
 ```
 
+### Use clangd as language server (optional)
+```sh
+python3 scripts/clang-tools/gen_compile_commands.py
+```
+
 ## Build initramfs
 ```sh
 cd $ROOT/$BUSYBOX
