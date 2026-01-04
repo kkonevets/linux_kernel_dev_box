@@ -1,6 +1,6 @@
-A minimal environment for linux kernel development to run in `qemu-kvm` on Ubuntu host.
+A minimal environment for linux kernel development to run in `qemu/kvm` on Debian host.
 
-Compile the kernel, use [BusyBox](https://www.busybox.net/) for rootfs and debug the kernel.
+Compile the kernel, use [BusyBox](https://www.busybox.net/) for initramfs and debug the kernel.
 
 ## Setup variables
 
@@ -57,7 +57,7 @@ RANDOMIZE_BASE=n
 make ARCH=arm CROSS_COMPILE=$TOOLCHAIN- -j$(nproc)
 ```
 
-## Build rootfs
+## Build initramfs
 ```sh
 cd $ROOT/$BUSYBOX
 
@@ -67,10 +67,10 @@ CONFIG_STATIC=y
 ' >> .config
 sed -i 's/CONFIG_TC=y/CONFIG_TC=n/' .config
 
-sudo rm -rf ../rootfs && mkdir ../rootfs
-make ARCH=arm CROSS_COMPILE=$TOOLCHAIN- CONFIG_PREFIX=../rootfs -j$(nproc) install
+sudo rm -rf ../initramfs && mkdir ../initramfs
+make ARCH=arm CROSS_COMPILE=$TOOLCHAIN- CONFIG_PREFIX=../initramfs -j$(nproc) install
 
-cd ../rootfs
+cd ../initramfs
 mkdir -p etc/init.d
 echo '#!/bin/sh' > etc/init.d/rcS
 chmod +x etc/init.d/rcS
@@ -84,7 +84,7 @@ sudo mknod -m 660 tty3 c 4 3
 sudo mknod -m 660 tty4 c 4 4
 
 cd ..
-find . -print0 | cpio --null -ov --format=newc | gzip -9 > ../rootfs.cpio.gz
+find . -print0 | cpio --null -ov --format=newc | gzip -9 > ../initramfs.cpio.gz
 ```
 
 ## Run the box
@@ -92,7 +92,7 @@ find . -print0 | cpio --null -ov --format=newc | gzip -9 > ../rootfs.cpio.gz
 ```sh
 cd $ROOT
 qemu-system-arm -M virt -m 256M -kernel $LINUX/arch/arm/boot/zImage \
-	-initrd rootfs.cpio.gz -append "root=/dev/mem" -nographic
+	-initrd initramfs.cpio.gz -append "root=/dev/mem" -nographic
 ```
 You can set `-enable-kvm` to accelerate a virtual machine only if the host CPU architecture and the guest CPU architecture are the same.
 E.g. your CPU is Intel or AMD and you compile for `ARCH=x86`.
@@ -104,7 +104,7 @@ qemu-system-arm \
 	-M virt \
 	-m 256M \
 	-kernel $LINUX/arch/arm/boot/zImage \
-	-initrd rootfs.cpio.gz \
+	-initrd initramfs.cpio.gz \
 	-append "root=/dev/mem" \
   -net user,host=10.0.2.10,hostfwd=tcp:127.0.0.1:10021-:22 \
   -net nic,model=e1000 \
