@@ -1,6 +1,6 @@
 A minimal environment for linux kernel development to run in `qemu-kvm` on Ubuntu host.
 
-Compile the kernel, use [BusyBox](https://www.busybox.net/) for rootfs.
+Compile the kernel, use [BusyBox](https://www.busybox.net/) for rootfs and debug the kernel.
 
 ## Setup variables
 
@@ -23,7 +23,7 @@ tar -xf $BUSYBOX.tar.bz2
 
 ## Install toolchain
 ```sh
-sudo apt install -y gcc-$TOOLCHAIN
+sudo apt install -y gcc-$TOOLCHAIN gdb-multiarch
 ```
 
 ## Compile the kernel
@@ -39,6 +39,7 @@ make ARCH=arm CROSS_COMPILE=$TOOLCHAIN- defconfig
 echo '
 # Debug enable
 CONFIG_DEBUG_INFO=y
+CONFIG_KGDB=y
 
 # Debug info for symbolization.
 CONFIG_DEBUG_INFO_DWARF4=y
@@ -46,6 +47,8 @@ CONFIG_DEBUG_INFO_DWARF4=y
 # Memory bug detector
 CONFIG_KASAN=y
 CONFIG_KASAN_INLINE=y
+
+RANDOMIZE_BASE=n
 ' >> .config
 ```
 
@@ -90,4 +93,33 @@ find . -print0 | cpio --null -ov --format=newc | gzip -9 > ../rootfs.cpio.gz
 cd $ROOT
 qemu-system-arm -M virt -m 256M -kernel $LINUX/arch/arm/boot/zImage \
 	-initrd rootfs.cpio.gz -append "root=/dev/mem" -nographic
+```
+You can set `-enable-kvm` to accelerate a virtual machine only if the host CPU architecture and the guest CPU architecture are the same.
+E.g. your CPU is Intel or AMD and you compile for `ARCH=x86`.
+
+### Or run the box with debugging (optional)
+```sh
+cd $ROOT
+qemu-system-arm \
+	-M virt \
+	-m 256M \
+	-kernel $LINUX/arch/arm/boot/zImage \
+	-initrd rootfs.cpio.gz \
+	-append "root=/dev/mem" \
+  -net user,host=10.0.2.10,hostfwd=tcp:127.0.0.1:10021-:22 \
+  -net nic,model=e1000 \
+	-nographic \
+	-s \
+	-S \
+	-pidfile vm.pid \
+  2>&1 | tee vm.log
+```
+
+### Cross-debugging (optional)
+Start the GDB client in another terminal
+
+```sh
+cd $ROOT/$LINUX
+gdb-multiarch -ex 'add-auto-load-safe-path scripts/gdb' -ex 'target remote :1234' ./vmlinux
+# press `continue` and Ctrl-C to trigger an interrupt
 ```
